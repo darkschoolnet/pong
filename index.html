@@ -3,33 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>iPad Duel Pong</title>
+    <title>School Darknet Original - Pong</title>
     <style>
         body {
             margin: 0;
-            background: #111;
+            background: #050505;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             height: 100vh;
             width: 100vw;
             overflow: hidden;
-            font-family: sans-serif;
+            font-family: 'Impact', sans-serif;
             touch-action: none;
         }
+
+        /* Hinweis für Querformat */
+        #portrait-notice {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: black; color: white;
+            z-index: 100; justify-content: center;
+            align-items: center; text-align: center;
+            padding: 20px;
+        }
+        @media (orientation: landscape) {
+            #portrait-notice { display: flex; }
+        }
+
         #game-container {
             position: relative;
-            width: 90vw;  /* Nutzt 90% der Breite */
-            height: 80vh; /* Nutzt 80% der Höhe */
-            max-width: 500px; /* Begrenzung für bessere Spielbarkeit */
-            border: 3px solid #444;
+            width: 95vw;
+            height: 85vh;
+            max-width: 450px;
+            border: 2px solid #333;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
         }
+
         canvas {
             width: 100%;
             height: 100%;
             background: #000;
             display: block;
         }
+
         .overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -37,36 +56,52 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            background: rgba(0, 0, 0, 0.85);
+            background: rgba(0, 0, 0, 0.9);
             color: white;
             z-index: 10;
-            text-align: center;
         }
+
         button {
-            padding: 20px 50px;
-            font-size: 20px;
-            background: #00f2ff;
+            padding: 15px 40px;
+            font-size: 24px;
+            background: #fff;
+            color: #000;
             border: none;
-            border-radius: 10px;
-            font-weight: bold;
-            box-shadow: 0 0 15px #00f2ff;
+            font-family: 'Impact', sans-serif;
+            cursor: pointer;
+            letter-spacing: 2px;
+        }
+
+        .branding {
+            margin-top: 20px;
+            font-family: 'Impact', sans-serif;
+            font-size: 14px;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
     </style>
 </head>
 <body>
 
+<div id="portrait-notice">
+    <h2>BITTE DAS IPAD INS HOCHFORMAT DREHEN!</h2>
+</div>
+
 <div id="game-container">
     <canvas id="gameCanvas"></canvas>
     
     <div id="startScreen" class="overlay">
-        <h2 style="color: #00f2ff">NEON PONG</h2>
-        <p>Ein Finger pro Spieler.<br>Das iPad flach auf den Tisch legen.</p>
+        <h1 style="font-size: 50px; margin: 0;">NEON DUEL</h1>
+        <div class="branding">Ein School Darknet Original</div>
+        <p style="font-family: sans-serif; font-size: 12px; color: #888; margin: 20px 0;">NUR FÜR TOUCH-GERÄTE</p>
         <button onclick="startGame()">START</button>
     </div>
 
     <div id="gameOverScreen" class="overlay" style="display: none;">
-        <h2 id="winnerLabel"></h2>
-        <button onclick="startGame()">REMATCH</button>
+        <h2 id="winnerLabel" style="font-size: 40px;"></h2>
+        <div class="branding">Ein School Darknet Original</div>
+        <button onclick="startGame()" style="margin-top: 20px;">REMATCH</button>
     </div>
 </div>
 
@@ -77,24 +112,23 @@
     const gameOverScreen = document.getElementById("gameOverScreen");
     const winnerLabel = document.getElementById("winnerLabel");
 
-    // Interne Auflösung festlegen
     canvas.width = 400;
     canvas.height = 600;
 
-    const paddleWidth = 80;
-    const paddleHeight = 12;
+    const paddleWidth = 90;
+    const paddleHeight = 15;
     let p1X, p2X, ballX, ballY, ballDX, ballDY, p1Score, p2Score;
     let gameRunning = false;
+    let currentSpeed = 4; // Basisgeschwindigkeit
 
     function resetPositions() {
         p1X = (canvas.width - paddleWidth) / 2;
         p2X = (canvas.width - paddleWidth) / 2;
         ballX = canvas.width / 2;
         ballY = canvas.height / 2;
-        
-        // Moderate Startgeschwindigkeit
-        ballDX = (Math.random() > 0.5 ? 2.5 : -2.5);
-        ballDY = (Math.random() > 0.5 ? 3.5 : -3.5);
+        currentSpeed = 3.5; // Reset Speed
+        ballDX = (Math.random() > 0.5 ? 2 : -2);
+        ballDY = (Math.random() > 0.5 ? 3 : -3);
     }
 
     function startGame() {
@@ -107,7 +141,6 @@
         requestAnimationFrame(update);
     }
 
-    // Touch Handling verbessert für iPad
     window.addEventListener('touchstart', handleTouch, {passive: false});
     window.addEventListener('touchmove', handleTouch, {passive: false});
 
@@ -123,7 +156,6 @@
             let tx = (t.clientX - rect.left) * scaleX;
             let ty = (t.clientY - rect.top) * scaleY;
 
-            // Untere Hälfte = Spieler 1, Obere Hälfte = Spieler 2
             if (ty > canvas.height / 2) {
                 p1X = Math.max(0, Math.min(canvas.width - paddleWidth, tx - paddleWidth / 2));
             } else {
@@ -135,33 +167,28 @@
     function update() {
         if (!gameRunning) return;
 
-        ballX += ballDX;
-        ballY += ballDY;
+        // Kontinuierliche Beschleunigung (Schwierigkeit steigt stetig)
+        currentSpeed += 0.0015;
+        
+        ballX += ballDX * (currentSpeed / 4);
+        ballY += ballDY * (currentSpeed / 4);
 
-        // Seitliche Wände
-        if (ballX <= 0 || ballX >= canvas.width) {
-            ballDX *= -1;
-            ballX = ballX <= 0 ? 1 : canvas.width - 1; // "Steckenbleiben" verhindern
-        }
+        if (ballX <= 0 || ballX >= canvas.width) ballDX *= -1;
 
-        // Kollision oben (P2)
-        if (ballY <= 25 && ballY > 10 && ballX > p2X && ballX < p2X + paddleWidth) {
-            ballDY = Math.abs(ballDY); // Immer nach unten abprallen
-            // Winkel basierend auf Treffpunkt berechnen (verhindert extremes Zickzack)
+        // Kollision P2 (Oben)
+        if (ballY <= 35 && ballY > 15 && ballX > p2X && ballX < p2X + paddleWidth) {
+            ballDY = Math.abs(ballDY);
             let impact = (ballX - (p2X + paddleWidth/2)) / (paddleWidth/2);
-            ballDX = impact * 4;
-            limitSpeed();
+            ballDX = impact * 5;
         }
 
-        // Kollision unten (P1)
-        if (ballY >= canvas.height - 25 && ballY < canvas.height - 10 && ballX > p1X && ballX < p1X + paddleWidth) {
-            ballDY = -Math.abs(ballDY); // Immer nach oben abprallen
+        // Kollision P1 (Unten)
+        if (ballY >= canvas.height - 35 && ballY < canvas.height - 15 && ballX > p1X && ballX < p1X + paddleWidth) {
+            ballDY = -Math.abs(ballDY);
             let impact = (ballX - (p1X + paddleWidth/2)) / (paddleWidth/2);
-            ballDX = impact * 4;
-            limitSpeed();
+            ballDX = impact * 5;
         }
 
-        // Punktvergabe
         if (ballY < 0) { p1Score++; checkPoint(); }
         if (ballY > canvas.height) { p2Score++; checkPoint(); }
 
@@ -169,15 +196,10 @@
         requestAnimationFrame(update);
     }
 
-    function limitSpeed() {
-        // Ball wird minimal schneller, aber gedeckelt auf einen Max-Wert
-        if (Math.abs(ballDY) < 7) ballDY *= 1.05;
-    }
-
     function checkPoint() {
-        if (p1Score >= 7 || p2Score >= 7) {
+        if (p1Score >= 10 || p2Score >= 10) {
             gameRunning = false;
-            winnerLabel.innerText = p1Score >= 7 ? "SPIELER 1 GEWINNT!" : "SPIELER 2 GEWINNT!";
+            winnerLabel.innerText = p1Score >= 10 ? "SPIELER 1 SIEGT!" : "SPIELER 2 SIEGT!";
             gameOverScreen.style.display = "flex";
         } else {
             resetPositions();
@@ -188,24 +210,48 @@
         ctx.fillStyle = "black";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Score Anzeige im Hintergrund
-        ctx.fillStyle = "#222";
-        ctx.font = "bold 60px sans-serif";
+        // Mittellinie
+        ctx.setLineDash([5, 15]);
+        ctx.strokeStyle = "#333";
+        ctx.beginPath();
+        ctx.moveTo(0, canvas.height/2);
+        ctx.lineTo(canvas.width, canvas.height/2);
+        ctx.stroke();
+
+        // Spieler-Beschriftungen (Impact)
+        ctx.fillStyle = "#444";
+        ctx.font = "20px Impact";
         ctx.textAlign = "center";
-        ctx.fillText(p2Score, canvas.width/2, canvas.height/4);
-        ctx.fillText(p1Score, canvas.width/2, (canvas.height/4)*3);
+        ctx.save();
+        ctx.translate(canvas.width/2, 50);
+        ctx.rotate(Math.PI); // P2 sieht seinen Namen richtig rum
+        ctx.fillText("SPIELER 2", 0, 0);
+        ctx.restore();
+        ctx.fillText("SPIELER 1", canvas.width/2, canvas.height - 50);
+
+        // Score
+        ctx.fillStyle = "rgba(255,255,255,0.1)";
+        ctx.font = "120px Impact";
+        ctx.fillText(p2Score, canvas.width/2, canvas.height/2 - 40);
+        ctx.fillText(p1Score, canvas.width/2, canvas.height/2 + 130);
 
         // Paddles
-        ctx.fillStyle = "#ff00ff"; // P2 Magenta
-        ctx.fillRect(p2X, 10, paddleWidth, paddleHeight);
-        ctx.fillStyle = "#00f2ff"; // P1 Cyan
-        ctx.fillRect(p1X, canvas.height - 10 - paddleHeight, paddleWidth, paddleHeight);
+        ctx.fillStyle = "#ff0055"; // Rot für P2
+        ctx.fillRect(p2X, 20, paddleWidth, paddleHeight);
+        ctx.fillStyle = "#00ffcc"; // Türkis für P1
+        ctx.fillRect(p1X, canvas.height - 20 - paddleHeight, paddleWidth, paddleHeight);
 
         // Ball
         ctx.fillStyle = "white";
         ctx.beginPath();
-        ctx.arc(ballX, ballY, 8, 0, Math.PI*2);
+        ctx.arc(ballX, ballY, 7, 0, Math.PI*2);
         ctx.fill();
+
+        // Branding im laufenden Spiel (unten rechts klein)
+        ctx.fillStyle = "#333";
+        ctx.font = "10px Impact";
+        ctx.textAlign = "right";
+        ctx.fillText("SCHOOL DARKNET ORIGINAL", canvas.width - 10, canvas.height - 5);
     }
 </script>
 </body>
