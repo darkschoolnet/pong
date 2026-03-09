@@ -3,135 +3,208 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>iPad 2-Player Pong</title>
+    <title>Neon Touch Pong</title>
     <style>
         body {
             margin: 0;
-            background: #222;
+            background: #111;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
             overflow: hidden;
-            font-family: sans-serif;
-            touch-action: none; /* Verhindert Scrollen beim Spielen */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            touch-action: none;
+        }
+        #game-container {
+            position: relative;
+            box-shadow: 0 0 50px rgba(0, 255, 255, 0.2);
         }
         canvas {
             background: #000;
-            border: 4px solid #fff;
-            max-width: 100%;
-            max-height: 100%;
+            border: 2px solid #333;
+            display: block;
         }
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            z-index: 10;
+        }
+        button {
+            padding: 15px 40px;
+            font-size: 24px;
+            background: cyan;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+            text-transform: uppercase;
+            box-shadow: 0 0 20px cyan;
+        }
+        button:active { transform: scale(0.95); }
+        h1 { margin-bottom: 10px; text-shadow: 0 0 10px cyan; }
+        p { margin-bottom: 20px; color: #ccc; }
     </style>
 </head>
 <body>
 
-<canvas id="gameCanvas"></canvas>
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="startScreen" class="overlay">
+        <h1>NEON PONG</h1>
+        <p>Zwei Spieler - Gegenüber aufstellen</p>
+        <button onclick="startGame()">Start</button>
+    </div>
+
+    <div id="gameOverScreen" class="overlay" style="display: none;">
+        <h1 id="winnerLabel">SPIELER 1 SIEGT!</h1>
+        <button onclick="startGame()">Nochmal</button>
+    </div>
+</div>
 
 <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
+    const startScreen = document.getElementById("startScreen");
+    const gameOverScreen = document.getElementById("gameOverScreen");
+    const winnerLabel = document.getElementById("winnerLabel");
 
-    // Spielfeld-Größe anpassen
-    canvas.width = 800;
-    canvas.height = 600;
+    canvas.width = 600;
+    canvas.height = 800; // Hochformat ist besser für iPad-Duelle
 
-    const paddleWidth = 100, paddleHeight = 20;
-    let ballX = canvas.width / 2, ballY = canvas.height / 2;
-    let ballDX = 4, ballDY = 4;
-    const ballRadius = 10;
+    const paddleWidth = 120, paddleHeight = 15;
+    let ballX, ballY, ballDX, ballDY;
+    let p1X, p2X, p1Score, p2Score;
+    let gameRunning = false;
+    const winningScore = 5;
 
-    let p1X = (canvas.width - paddleWidth) / 2;
-    let p2X = (canvas.width - paddleWidth) / 2;
-    let p1Score = 0, p2Score = 0;
+    function initGame() {
+        p1Score = 0;
+        p2Score = 0;
+        resetPositions();
+    }
 
-    // Touch-Steuerung
-    window.addEventListener('touchstart', handleTouch);
-    window.addEventListener('touchmove', handleTouch);
+    function resetPositions() {
+        ballX = canvas.width / 2;
+        ballY = canvas.height / 2;
+        // Startgeschwindigkeit: Langsam (3)
+        ballDX = (Math.random() > 0.5 ? 1 : -1) * 3;
+        ballDY = (Math.random() > 0.5 ? 1 : -1) * 3;
+        p1X = (canvas.width - paddleWidth) / 2;
+        p2X = (canvas.width - paddleWidth) / 2;
+    }
+
+    function startGame() {
+        initGame();
+        gameRunning = true;
+        startScreen.style.display = "none";
+        gameOverScreen.style.display = "none";
+        requestAnimationFrame(update);
+    }
+
+    window.addEventListener('touchstart', handleTouch, {passive: false});
+    window.addEventListener('touchmove', handleTouch, {passive: false});
 
     function handleTouch(e) {
+        if (!gameRunning) return;
         e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        
         for (let i = 0; i < e.touches.length; i++) {
-            let touch = e.touches[i];
-            let rect = canvas.getBoundingClientRect();
-            let touchX = (touch.clientX - rect.left) * (canvas.width / rect.width);
-            let touchY = (touch.clientY - rect.top) * (canvas.height / rect.height);
+            let t = e.touches[i];
+            let tx = (t.clientX - rect.left) * (canvas.width / rect.width);
+            let ty = (t.clientY - rect.top) * (canvas.height / rect.height);
 
-            // Obere Hälfte steuert P2, untere Hälfte P1
-            if (touchY < canvas.height / 2) {
-                p2X = touchX - paddleWidth / 2;
+            if (ty > canvas.height / 2) {
+                p1X = Math.max(0, Math.min(canvas.width - paddleWidth, tx - paddleWidth / 2));
             } else {
-                p1X = touchX - paddleWidth / 2;
+                p2X = Math.max(0, Math.min(canvas.width - paddleWidth, tx - paddleWidth / 2));
             }
         }
     }
 
+    function update() {
+        if (!gameRunning) return;
+
+        ballX += ballDX;
+        ballY += ballDY;
+
+        // Wand-Kollision
+        if (ballX <= 0 || ballX >= canvas.width) ballDX *= -1;
+
+        // Schläger-Kollision (P2 Oben)
+        if (ballY <= 30 && ballX > p2X && ballX < p2X + paddleWidth) {
+            ballDY = Math.abs(ballDY) + 0.3; // Ball wird leicht schneller
+            ballDX += (ballX - (p2X + paddleWidth/2)) * 0.1; // Winkel ändern
+        }
+
+        // Schläger-Kollision (P1 Unten)
+        if (ballY >= canvas.height - 30 && ballX > p1X && ballX < p1X + paddleWidth) {
+            ballDY = -Math.abs(ballDY) - 0.3;
+            ballDX += (ballX - (p1X + paddleWidth/2)) * 0.1;
+        }
+
+        // Punkt-Logik
+        if (ballY < 0) { p1Score++; checkWinner(); }
+        else if (ballY > canvas.height) { p2Score++; checkWinner(); }
+
+        draw();
+        if (gameRunning) requestAnimationFrame(update);
+    }
+
+    function checkWinner() {
+        if (p1Score >= winningScore || p2Score >= winningScore) {
+            gameRunning = false;
+            winnerLabel.innerText = p1Score >= winningScore ? "SPIELER 1 GEWINNT!" : "SPIELER 2 GEWINNT!";
+            gameOverScreen.style.display = "flex";
+        } else {
+            resetPositions();
+        }
+    }
+
     function draw() {
-        // Hintergrund
         ctx.fillStyle = "black";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         // Mittellinie
-        ctx.strokeStyle = "white";
-        ctx.setLineDash([10, 10]);
+        ctx.strokeStyle = "#333";
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(0, canvas.height / 2);
-        ctx.lineTo(canvas.width, canvas.height / 2);
+        ctx.moveTo(0, canvas.height/2);
+        ctx.lineTo(canvas.width, canvas.height/2);
         ctx.stroke();
 
-        // Schläger (P1 unten, P2 oben)
-        ctx.fillStyle = "cyan";
-        ctx.fillRect(p1X, canvas.height - paddleHeight - 10, paddleWidth, paddleHeight);
-        ctx.fillStyle = "magenta";
-        ctx.fillRect(p2X, 10, paddleWidth, paddleHeight);
+        // Scores
+        ctx.fillStyle = "rgba(255,255,255,0.2)";
+        ctx.font = "bold 80px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(p2Score, canvas.width/2, canvas.height/2 - 50);
+        ctx.fillText(p1Score, canvas.width/2, canvas.height/2 + 120);
+
+        // Paddles
+        ctx.shadowBlur = 15;
+        ctx.fillStyle = "magenta"; ctx.shadowColor = "magenta";
+        ctx.fillRect(p2X, 15, paddleWidth, paddleHeight);
+        
+        ctx.fillStyle = "cyan"; ctx.shadowColor = "cyan";
+        ctx.fillRect(p1X, canvas.height - 30, paddleWidth, paddleHeight);
 
         // Ball
+        ctx.fillStyle = "white"; ctx.shadowColor = "white";
         ctx.beginPath();
-        ctx.arc(ballX, ballY, ballRadius, 0, Math.PI * 2);
-        ctx.fillStyle = "white";
+        ctx.arc(ballX, ballY, 10, 0, Math.PI*2);
         ctx.fill();
-        ctx.closePath();
-
-        // Score
-        ctx.font = "30px Arial";
-        ctx.fillStyle = "white";
-        ctx.fillText(p2Score, 20, canvas.height / 2 - 20);
-        ctx.fillText(p1Score, 20, canvas.height / 2 + 45);
-
-        // Ball-Logik
-        ballX += ballDX;
-        ballY += ballDY;
-
-        // Wände (links/rechts)
-        if (ballX + ballRadius > canvas.width || ballX - ballRadius < 0) ballDX *= -1;
-
-        // Kollision Schläger Oben (P2)
-        if (ballY - ballRadius < 10 + paddleHeight && ballX > p2X && ballX < p2X + paddleWidth) {
-            ballDY = Math.abs(ballDY);
-            ballDY += 0.2; // Schneller werden
-        }
-        
-        // Kollision Schläger Unten (P1)
-        if (ballY + ballRadius > canvas.height - 10 - paddleHeight && ballX > p1X && ballX < p1X + paddleWidth) {
-            ballDY = -Math.abs(ballDY);
-            ballDY -= 0.2;
-        }
-
-        // Punkt erzielen
-        if (ballY < 0) { p1Score++; resetBall(); }
-        if (ballY > canvas.height) { p2Score++; resetBall(); }
-
-        requestAnimationFrame(draw);
+        ctx.shadowBlur = 0;
     }
 
-    function resetBall() {
-        ballX = canvas.width / 2;
-        ballY = canvas.height / 2;
-        ballDY = ballDY > 0 ? -4 : 4;
-        ballDX = (Math.random() - 0.5) * 8;
-    }
-
-    draw();
+    draw(); // Initiales Zeichnen
 </script>
 </body>
 </html>
